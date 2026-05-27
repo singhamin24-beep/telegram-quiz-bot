@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from telegram import Update, Poll
 from telegram.ext import Application, CommandHandler, ContextTypes, PollAnswerHandler
 from questions import QUESTIONS
@@ -7,18 +8,20 @@ from questions import QUESTIONS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = "8930549590:AAEsQ-IxHuJFrU9OkYS3dvRklW-Gq4lD5Vw"
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN environment variable नहीं मिला!")
 
 user_data = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🎓 *GK Quiz Bot में आपका स्वागत है!*\n\n"
+        "🎓 GK Quiz Bot में आपका स्वागत है!\n\n"
         "📚 विषय: इतिहास, राजव्यवस्था, रसायन विज्ञान, GK\n"
         "❓ कुल प्रश्न: 25\n\n"
         "▶️ शुरू करने के लिए /quiz टाइप करें\n"
-        "📊 स्कोर देखने के लिए /score टाइप करें",
-        parse_mode="Markdown"
+        "📊 स्कोर देखने के लिए /score टाइप करें"
     )
 
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -35,12 +38,10 @@ async def send_question(chat_id, user_id, context):
     data = user_data.get(user_id)
     if not data:
         return
-
     idx = data["current"]
     if idx >= len(QUESTIONS):
         await show_result(chat_id, user_id, context)
         return
-
     q = QUESTIONS[idx]
     topic_emoji = {
         "प्राचीन इतिहास": "🏰",
@@ -52,7 +53,6 @@ async def send_question(chat_id, user_id, context):
         "सामान्य ज्ञान": "💡"
     }
     emoji = topic_emoji.get(q["topic"], "📚")
-
     await context.bot.send_poll(
         chat_id=chat_id,
         question=f"{emoji} Q{idx+1}/25 [{q['topic']}]\n\n{q['q']}",
@@ -70,15 +70,12 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     data = user_data.get(user_id)
     if not data:
         return
-
     q = QUESTIONS[data["current"]]
     selected = answer.option_ids[0] if answer.option_ids else -1
-
     if selected == q["ans"]:
         data["score"] += 1
     else:
         data["wrong"].append(q)
-
     data["current"] += 1
     await asyncio.sleep(2)
     await send_question(data["chat_id"], user_id, context)
@@ -87,11 +84,9 @@ async def show_result(chat_id, user_id, context):
     data = user_data.get(user_id)
     if not data:
         return
-
     score = data["score"]
     total = len(QUESTIONS)
     pct = round(score / total * 100)
-
     if pct >= 80:
         grade = "🏆 उत्कृष्ट!"
     elif pct >= 60:
@@ -100,31 +95,26 @@ async def show_result(chat_id, user_id, context):
         grade = "📚 ठीक है!"
     else:
         grade = "💪 और मेहनत करें!"
-
     result_text = (
-        f"🎉 *क्विज़ पूरा हुआ!*\n\n"
+        f"🎉 क्विज़ पूरा हुआ!\n\n"
         f"✅ सही उत्तर: {score}/{total}\n"
         f"📊 प्रतिशत: {pct}%\n"
         f"🎯 {grade}\n\n"
     )
-
     if data["wrong"]:
-        result_text += "❌ *गलत उत्तरों की ट्रिक्स:*\n\n"
+        result_text += "❌ गलत उत्तरों की ट्रिक्स:\n\n"
         for i, q in enumerate(data["wrong"], 1):
             result_text += (
-                f"*Q{i}.* {q['q']}\n"
+                f"Q{i}. {q['q']}\n"
                 f"✅ सही: {q['opts'][q['ans']]}\n"
                 f"💡 ट्रिक: {q['trick']}\n\n"
             )
     else:
         result_text += "🌟 शाबाश! सभी उत्तर सही थे!"
-
     result_text += "\n▶️ फिर खेलने के लिए /quiz टाइप करें"
-
     await context.bot.send_message(
         chat_id=chat_id,
-        text=result_text,
-        parse_mode="Markdown"
+        text=result_text
     )
 
 async def score(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -145,7 +135,7 @@ def main():
     app.add_handler(CommandHandler("score", score))
     app.add_handler(PollAnswerHandler(handle_poll_answer))
     print("✅ Bot चालू हो गया!")
-    app.run_polling()
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
