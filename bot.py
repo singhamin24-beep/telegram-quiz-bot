@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import os
 from telegram import Update, Poll
 from telegram.ext import Application, CommandHandler, ContextTypes, PollAnswerHandler
 from questions import QUESTIONS
@@ -8,10 +7,7 @@ from questions import QUESTIONS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN environment variable नहीं मिला!")
+BOT_TOKEN = "8930549590:AAEsQ-IxHuJFrU9OkYS3dvRklW-Gq4lD5Vw"
 
 user_data = {}
 
@@ -112,10 +108,7 @@ async def show_result(chat_id, user_id, context):
     else:
         result_text += "🌟 शाबाश! सभी उत्तर सही थे!"
     result_text += "\n▶️ फिर खेलने के लिए /quiz टाइप करें"
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=result_text
-    )
+    await context.bot.send_message(chat_id=chat_id, text=result_text)
 
 async def score(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
